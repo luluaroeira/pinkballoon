@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  name            String
+  email           String    @unique
+  password        String
+  codeforcesHandle String
+  role            String    @default("user") // "user" or "admin"
+  lastCheckedSubmissionId Int? // for incremental CF checking
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  completions     ExerciseCompletion[]
+  resetTokens     PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Exercise {
+  id            Int       @id @default(autoincrement())
+  type          String    // "daily" or "weekly"
+  contestId     Int
+  problemIndex  String    // "A", "B", "C", etc.
+  title         String?
+  description   String?
+  points        Int       @default(1)
+  publishedAt   DateTime  @default(now())
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  completions   ExerciseCompletion[]
+}
+
+model ExerciseCompletion {
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  exerciseId      Int?      // Nullable: can be a general practice problem
+  submissionId    Int       @unique // CF submission ID
+  
+  // Problem details for general practice
+  contestId       Int?
+  problemIndex    String?
+  problemName     String?
+  difficulty      Int?
+  type            String    @default("practice") // "daily", "weekly", "practice"
+
+  completedAt     DateTime  @default(now())
+  pointsAwarded   Int
+
+  user            User      @relation(fields: [userId], references: [id])
+  exercise        Exercise? @relation(fields: [exerciseId], references: [id])
+}
+
+model Announcement {
+  id          Int       @id @default(autoincrement())
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model AuditLog {
+  id          Int       @id @default(autoincrement())
+  action      String
+  details     String
+  userId      Int?
+  exerciseId  Int?
+  createdAt   DateTime  @default(now())
+}
