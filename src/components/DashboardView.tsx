@@ -200,6 +200,16 @@ export default function DashboardView() {
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
                         Membro desde {new Date(data.memberSince).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} • {user?.codeforcesHandle}
                     </p>
+                    <div style={{
+                        marginTop: '12px', padding: '10px 14px', borderRadius: '10px',
+                        background: 'rgba(168, 85, 247, 0.08)',
+                        border: '1px solid rgba(168, 85, 247, 0.15)',
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        fontSize: '0.8rem', color: 'var(--text-secondary)'
+                    }}>
+                        <span>⏳</span>
+                        <span>As pontuações são atualizadas automaticamente a cada 3 minutos. Após submeter no Codeforces, aguarde um pouquinho para ver seus pontos aqui!</span>
+                    </div>
                 </div>
 
                 {/* Stats grid */}

@@ -11,17 +11,30 @@ export async function GET(request: Request) {
         }
 
         const { searchParams } = new URL(request.url);
-        const period = searchParams.get('period') || 'total'; // 'month', 'semester', 'total'
+        const periodParam = searchParams.get('period'); // 'month', 'semester'
 
-        let dateFilter: Date | undefined;
+        let dateFilterStart: Date | undefined;
+        let dateFilterEnd: Date | undefined;
         const now = new Date();
 
-        if (period === 'month') {
-            dateFilter = new Date(now.getFullYear(), now.getMonth(), 1);
-        } else if (period === 'semester') {
+        // 1. Check for ACTIVE SCORING PERIOD (Admin config)
+        const activePeriod = await prisma.scoringPeriod.findFirst({
+            where: { isActive: true }
+        });
+
+        if (activePeriod) {
+            dateFilterStart = activePeriod.startDate;
+            dateFilterEnd = activePeriod.endDate;
+        }
+        // 2. Fallback to query params if no period is active (or maybe combine?)
+        // User requested: "pontuacoes nao devem computar exercicios feitos ao todo... apenas aqueles feitos em um certo periodo"
+        // So if active period exists, it takes precedence for the main ranking.
+        else if (periodParam === 'month') {
+            dateFilterStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        } else if (periodParam === 'semester') {
             const month = now.getMonth();
             const semesterStart = month < 6 ? 0 : 6;
-            dateFilter = new Date(now.getFullYear(), semesterStart, 1);
+            dateFilterStart = new Date(now.getFullYear(), semesterStart, 1);
         }
 
         const users = await prisma.user.findMany({
@@ -31,9 +44,12 @@ export async function GET(request: Request) {
                 name: true,
                 codeforcesHandle: true,
                 completions: {
-                    where: dateFilter ? {
-                        completedAt: { gte: dateFilter }
-                    } : undefined,
+                    where: {
+                        completedAt: {
+                            gte: dateFilterStart,
+                            lte: dateFilterEnd
+                        }
+                    },
                     select: {
                         pointsAwarded: true,
                         completedAt: true,

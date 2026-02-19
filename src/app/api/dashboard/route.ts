@@ -26,15 +26,31 @@ export async function GET() {
             return NextResponse.json({ error: 'Usuária não encontrada' }, { status: 404 });
         }
 
-        // Total points
-        const totalPoints = user.completions.reduce((sum, c) => sum + c.pointsAwarded, 0);
+        // Check active period
+        const activePeriod = await prisma.scoringPeriod.findFirst({
+            where: { isActive: true }
+        });
+
+        // Filter completions if active period exists
+        let completions = user.completions;
+        if (activePeriod) {
+            const start = new Date(activePeriod.startDate).getTime();
+            const end = new Date(activePeriod.endDate).getTime();
+            completions = user.completions.filter(c => {
+                const t = new Date(c.completedAt).getTime();
+                return t >= start && t <= end;
+            });
+        }
+
+        // Total points (based on filtered completions)
+        const totalPoints = completions.reduce((sum, c) => sum + c.pointsAwarded, 0);
 
         // Daily and weekly counts (use stored type on completion)
-        const dailyCompleted = user.completions.filter(c => c.type === 'daily').length;
-        const weeklyCompleted = user.completions.filter(c => c.type === 'weekly').length;
+        const dailyCompleted = completions.filter(c => c.type === 'daily').length;
+        const weeklyCompleted = completions.filter(c => c.type === 'weekly').length;
 
         // Calculate streak (consecutive days with daily exercise completed)
-        const dailyCompletions = user.completions
+        const dailyCompletions = completions
             .filter(c => c.type === 'daily')
             .map(c => {
                 const d = new Date(c.completedAt);
@@ -98,7 +114,7 @@ export async function GET() {
             const weekEnd = new Date(weekStart);
             weekEnd.setDate(weekEnd.getDate() + 7);
 
-            const weekPoints = user.completions
+            const weekPoints = completions
                 .filter(c => {
                     const d = new Date(c.completedAt);
                     return d >= weekStart && d < weekEnd;
@@ -110,7 +126,7 @@ export async function GET() {
         }
 
         // Completed exercises list
-        const completedExercises = user.completions.map(c => ({
+        const completedExercises = completions.map(c => ({
             id: c.id,
             exerciseId: c.exerciseId || 0,
             type: c.type, // Use stored type

@@ -1,0 +1,27 @@
+﻿Total completions for user 3: 195
+
+Completions with "Next" in name: [
+  {
+    "id": 8,
+    "userId": 3,
+    "exerciseId": null,
+    "submissionId": 216118589,
+    "contestId": 158,
+    "problemIndex": "A",
+    "problemName": "Next Round",
+    "difficulty": 800,
+    "type": "practice",
+    "completedAt": "2023-07-28T16:27:05.000Z",
+    "pointsAwarded": 1
+  }
+]
+
+Completions from today: []
+
+Completion for submission 363574443: null
+Completion for submission 363573810 (Watermelon): null
+
+Latest 3 CF submissions:
+  ID: 363574443 | 158A "Next Round" | verdict: OK
+  ID: 363573810 | 4A "Watermelon" | verdict: OK
+  ID: 321716333 | 1A "Theatre Square" | verdict: OK

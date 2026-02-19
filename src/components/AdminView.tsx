@@ -33,11 +33,20 @@ interface AdminUser {
     completions: { id: number; pointsAwarded: number }[];
 }
 
+interface ScoringPeriod {
+    id: number;
+    name: string;
+    startDate: string;
+    endDate: string;
+    isActive: boolean;
+}
+
 export default function AdminView() {
-    const [activeTab, setActiveTab] = useState<'exercises' | 'announcements' | 'users' | 'checker'>('exercises');
+    const [activeTab, setActiveTab] = useState<'exercises' | 'announcements' | 'users' | 'checker' | 'periods'>('exercises');
     const [exercises, setExercises] = useState<Exercise[]>([]);
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [users, setUsers] = useState<AdminUser[]>([]);
+    const [periods, setPeriods] = useState<ScoringPeriod[]>([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
@@ -53,6 +62,14 @@ export default function AdminView() {
         points: '3', // Default daily
         publishedAt: '',
         publishedTime: '07:00',
+    });
+
+    // Period form
+    const [showPeriodForm, setShowPeriodForm] = useState(false);
+    const [periodForm, setPeriodForm] = useState({
+        name: '',
+        startDate: '',
+        endDate: ''
     });
 
     // Convert DD/MM + HH:MM to ISO for API
@@ -121,17 +138,19 @@ export default function AdminView() {
     const fetchAll = useCallback(async () => {
         setLoading(true);
         try {
-            const [exRes, annRes, usrRes] = await Promise.all([
+            const [exRes, annRes, usrRes, perRes] = await Promise.all([
                 fetch('/api/admin/exercises'),
                 fetch('/api/admin/announcements'),
                 fetch('/api/admin/users'),
+                fetch('/api/admin/periods'),
             ]);
-            const [exData, annData, usrData] = await Promise.all([
-                exRes.json(), annRes.json(), usrRes.json(),
+            const [exData, annData, usrData, perData] = await Promise.all([
+                exRes.json(), annRes.json(), usrRes.json(), perRes.json()
             ]);
             setExercises(exData.exercises || []);
             setAnnouncements(annData.announcements || []);
             setUsers(usrData.users || []);
+            setPeriods(Array.isArray(perData) ? perData : []);
         } catch (err) {
             console.error('Admin fetch error:', err);
         } finally {
@@ -275,7 +294,90 @@ export default function AdminView() {
         }
     };
 
+    // --- PERIODS LOGIC ---
+    // Convert DD/MM/AAAA to ISO date string
+    const ddmmyyyyToISO = (ddmmyyyy: string): string => {
+        const match = ddmmyyyy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (!match) return '';
+        const [, day, month, year] = match;
+        return `${year}-${month}-${day}`;
+    };
+
+    // Auto-format date input with slashes
+    const handleDateMask = (value: string, prev: string): string => {
+        let val = value.replace(/[^0-9/]/g, '');
+        if (val.length === 2 && !val.includes('/') && prev.length < val.length) val += '/';
+        if (val.length === 5 && val.charAt(2) === '/' && val.indexOf('/', 3) === -1 && prev.length < val.length) val += '/';
+        return val;
+    };
+
+    const handlePeriodSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        // Validate DD/MM/AAAA
+        if (!periodForm.startDate.match(/^\d{2}\/\d{2}\/\d{4}$/) || !periodForm.endDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+            showToast('Datas devem estar no formato DD/MM/AAAA', 'error');
+            return;
+        }
+
+        const payload = {
+            name: periodForm.name,
+            startDate: ddmmyyyyToISO(periodForm.startDate),
+            endDate: ddmmyyyyToISO(periodForm.endDate),
+        };
+
+        try {
+            const res = await fetch('/api/admin/periods', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast('Período criado! Ative-o na lista abaixo.', 'success');
+                setPeriodForm({ name: '', startDate: '', endDate: '' });
+                setShowPeriodForm(false);
+                fetchAll();
+            } else {
+                showToast(data.error || 'Erro ao criar', 'error');
+            }
+        } catch {
+            showToast('Erro de conexão', 'error');
+        }
+    };
+
+    const handleActivatePeriod = async (id: number) => {
+        try {
+            const res = await fetch(`/api/admin/periods/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isActive: true }),
+            });
+            if (res.ok) {
+                showToast('Período ativado com sucesso! 🏆', 'success');
+                fetchAll();
+            } else {
+                showToast('Erro ao ativar', 'error');
+            }
+        } catch {
+            showToast('Erro de conexão', 'error');
+        }
+    };
+
+    const handleDeletePeriod = async (id: number) => {
+        if (!confirm('Tem certeza? Isso pode afetar o cálculo de pontos se houver histórico.')) return;
+        try {
+            await fetch(`/api/admin/periods/${id}`, { method: 'DELETE' });
+            showToast('Período excluído.', 'success');
+            fetchAll();
+        } catch {
+            showToast('Erro ao excluir', 'error');
+        }
+    };
+
+
     const tabs = [
+        { key: 'periods', label: 'Períodos', icon: '📅' },
         { key: 'exercises', label: 'Exercícios', icon: '📝' },
         { key: 'announcements', label: 'Avisos', icon: '📢' },
         { key: 'users', label: 'Usuárias', icon: '👥' },
@@ -298,7 +400,7 @@ export default function AdminView() {
                             <span className="gradient-text">Painel Admin</span>
                         </h1>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                            Gerencie exercícios, avisos e acompanhe as competidoras.
+                            Gerencie períodos, exercícios e avisos.
                         </p>
                     </div>
                     <button className="btn-secondary" onClick={handleRunCheck}>
@@ -325,6 +427,77 @@ export default function AdminView() {
                     </div>
                 ) : (
                     <>
+                        {/* PERIODS TAB */}
+                        {activeTab === 'periods' && (
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                    <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Período de Pontuação Ativo</h2>
+                                    <button className="btn-primary" onClick={() => setShowPeriodForm(!showPeriodForm)}>
+                                        {showPeriodForm ? 'Cancelar' : '+ Novo Período'}
+                                    </button>
+                                </div>
+
+                                {showPeriodForm && (
+                                    <div className="card" style={{ marginBottom: '20px' }}>
+                                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '12px' }}>Criar Novo Período (Season)</h3>
+                                        <form onSubmit={handlePeriodSubmit}>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Nome (Ex: Março 2026)</label>
+                                                    <input className="input" type="text" value={periodForm.name} onChange={e => setPeriodForm({ ...periodForm, name: e.target.value })} required />
+                                                </div>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>📅 Início</label>
+                                                    <input className="input" type="text" placeholder="DD/MM/AAAA" maxLength={10} value={periodForm.startDate} onChange={e => setPeriodForm({ ...periodForm, startDate: handleDateMask(e.target.value, periodForm.startDate) })} required />
+                                                </div>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>📅 Fim</label>
+                                                    <input className="input" type="text" placeholder="DD/MM/AAAA" maxLength={10} value={periodForm.endDate} onChange={e => setPeriodForm({ ...periodForm, endDate: handleDateMask(e.target.value, periodForm.endDate) })} required />
+                                                </div>
+                                            </div>
+                                            <button className="btn-primary" type="submit" style={{ marginTop: '12px' }}>Salvar Período</button>
+                                        </form>
+                                    </div>
+                                )}
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {periods.length === 0 && (
+                                        <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                                            <p>Nenhum período criado. Crie um para começar a contar pontos!</p>
+                                        </div>
+                                    )}
+                                    {periods.map(p => (
+                                        <div key={p.id} className={`card ${p.isActive ? 'active-period-card' : ''}`} style={{
+                                            borderLeft: p.isActive ? '4px solid var(--green-500)' : '4px solid transparent',
+                                            padding: '16px'
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{p.name}</span>
+                                                        {p.isActive && <span className="badge badge-success">ATIVO AGORA</span>}
+                                                    </div>
+                                                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                                        📅 {new Date(p.startDate).toLocaleDateString('pt-BR')} até {new Date(p.endDate).toLocaleDateString('pt-BR')}
+                                                    </p>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    {!p.isActive && (
+                                                        <button className="btn-secondary" onClick={() => handleActivatePeriod(p.id)}>
+                                                            ✅ Ativar
+                                                        </button>
+                                                    )}
+                                                    <button className="btn-danger" onClick={() => handleDeletePeriod(p.id)}>
+                                                        🗑️
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* EXERCISES TAB */}
                         {activeTab === 'exercises' && (
                             <div>

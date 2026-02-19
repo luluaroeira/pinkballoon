@@ -70,17 +70,28 @@ model ExerciseCompletion {
 }
 
 model Announcement {
-  id          Int       @id @default(autoincrement())
-  content     String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  content   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model AuditLog {
-  id          Int       @id @default(autoincrement())
-  action      String
-  details     String
-  userId      Int?
-  exerciseId  Int?
-  createdAt   DateTime  @default(now())
+  id        Int      @id @default(autoincrement())
+  action    String
+  details   String?
+  userId    Int?
+  exerciseId Int?
+  createdAt DateTime @default(now())
+}
+
+model ScoringPeriod {
+  id        Int      @id @default(autoincrement())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
