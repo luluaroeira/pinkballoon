@@ -11,6 +11,7 @@ export async function GET() {
         }
 
         const announcements = await prisma.announcement.findMany({
+            where: { isActive: true },
             orderBy: { createdAt: 'desc' },
             take: 10,
         });

@@ -2,7 +2,11 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    console.error('⚠️ CRITICAL: JWT_SECRET environment variable is not set in production!');
+}
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
+
 
 export interface JWTPayload {
     userId: number;

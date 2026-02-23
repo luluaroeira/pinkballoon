@@ -21,6 +21,17 @@ export async function PUT(request: NextRequest) {
         }
 
         if (codeforcesHandle) {
+            // Check if handle is already in use by another user (case-insensitive)
+            const existingHandles = await prisma.$queryRaw<{ id: number }[]>`
+                SELECT id FROM User WHERE LOWER(codeforcesHandle) = LOWER(${codeforcesHandle}) AND id != ${session.userId} LIMIT 1
+            `;
+            if (existingHandles.length > 0) {
+                return NextResponse.json(
+                    { error: 'Este handle do Codeforces já está cadastrado por outro usuário.' },
+                    { status: 400 }
+                );
+            }
+
             const isValid = await validateHandle(codeforcesHandle);
             if (!isValid) {
                 return NextResponse.json(

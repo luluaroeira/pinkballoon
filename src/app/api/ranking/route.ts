@@ -73,7 +73,6 @@ export async function GET(request: Request) {
                 exercisesCompleted: user.completions.length,
             };
         })
-            .filter(u => u.totalPoints > 0 || true) // show all users
             .sort((a, b) => {
                 // Sort by points desc, then by lastPointAt asc (who got there first)
                 if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;

@@ -12,7 +12,7 @@ model User {
   name            String
   email           String    @unique
   password        String
-  codeforcesHandle String
+  codeforcesHandle String    @unique
   role            String    @default("user") // "user" or "admin"
   lastCheckedSubmissionId Int? // for incremental CF checking
   createdAt       DateTime  @default(now())

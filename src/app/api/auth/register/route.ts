@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { hashPassword, verifyPassword, generateToken, verifyToken } from '@/lib/auth';
+import { hashPassword, generateToken } from '@/lib/auth';
 import { validateHandle } from '@/lib/codeforces';
 
 // POST /api/auth/register
@@ -28,6 +28,17 @@ export async function POST(request: NextRequest) {
         if (existingUser) {
             return NextResponse.json(
                 { error: 'Este email já está cadastrado.' },
+                { status: 400 }
+            );
+        }
+
+        // Check if Codeforces handle is already in use (case-insensitive)
+        const existingHandles = await prisma.$queryRaw<{ id: number }[]>`
+            SELECT id FROM User WHERE LOWER(codeforcesHandle) = LOWER(${codeforcesHandle}) LIMIT 1
+        `;
+        if (existingHandles.length > 0) {
+            return NextResponse.json(
+                { error: 'Este handle do Codeforces já está cadastrado por outro usuário.' },
                 { status: 400 }
             );
         }

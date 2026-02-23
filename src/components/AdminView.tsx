@@ -31,6 +31,10 @@ interface AdminUser {
     role: string;
     createdAt: string;
     completions: { id: number; pointsAwarded: number }[];
+    periodPoints: number;
+    periodCompletionsCount: number;
+    totalPoints: number;
+    totalCompletionsCount: number;
 }
 
 interface ScoringPeriod {
@@ -48,6 +52,7 @@ export default function AdminView() {
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [periods, setPeriods] = useState<ScoringPeriod[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activePeriodName, setActivePeriodName] = useState<string | null>(null);
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
     // Exercise form
@@ -150,6 +155,7 @@ export default function AdminView() {
             setExercises(exData.exercises || []);
             setAnnouncements(annData.announcements || []);
             setUsers(usrData.users || []);
+            setActivePeriodName(usrData.activePeriod?.name || null);
             setPeriods(Array.isArray(perData) ? perData : []);
         } catch (err) {
             console.error('Admin fetch error:', err);
@@ -727,33 +733,92 @@ export default function AdminView() {
                                     {users.length} usuária{users.length !== 1 ? 's' : ''} cadastrada{users.length !== 1 ? 's' : ''}
                                 </h2>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {users.map(u => (
-                                        <div key={u.id} className="card" style={{ padding: '16px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                                                <div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                                        <span style={{ fontWeight: 600 }}>{u.name}</span>
-                                                        {u.role === 'admin' && <span className="badge badge-weekly">Admin</span>}
+                                    {users.map(u => {
+                                        const isAdmin = u.role === 'admin';
+                                        return (
+                                            <div key={u.id} className="card" style={{ padding: '16px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                                                    <div style={{ flex: 1, minWidth: '200px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                            <span style={{ fontWeight: 600 }}>{u.name}</span>
+                                                            {isAdmin && <span className="badge badge-weekly">Admin</span>}
+                                                        </div>
+                                                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                                            {u.email} • CF: <a href={`https://codeforces.com/profile/${u.codeforcesHandle}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--purple-400)' }}>{u.codeforcesHandle}</a>
+                                                        </p>
+                                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                                            Desde {new Date(u.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                                        </p>
                                                     </div>
-                                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                                        {u.email} • CF: <a href={`https://codeforces.com/profile/${u.codeforcesHandle}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--purple-400)' }}>{u.codeforcesHandle}</a>
-                                                    </p>
-                                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                                        Desde {new Date(u.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                                                    </p>
-                                                </div>
-                                                <div style={{ textAlign: 'right' }}>
-                                                    <span className="gradient-text" style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-                                                        {u.completions.reduce((s, c) => s + c.pointsAwarded, 0)}
-                                                    </span>
-                                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '4px' }}>pts</span>
-                                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                                        {u.completions.length} exercício{u.completions.length !== 1 ? 's' : ''}
-                                                    </p>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <span className="gradient-text" style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+                                                                {u.periodPoints}
+                                                            </span>
+                                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '4px' }}>pts</span>
+                                                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                                {u.periodCompletionsCount} exercício{u.periodCompletionsCount !== 1 ? 's' : ''}
+                                                            </p>
+                                                            {u.totalPoints !== u.periodPoints && (
+                                                                <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                                                    Total geral: {u.totalPoints} pts
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        {!isAdmin && (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                                <button
+                                                                    className="btn-secondary"
+                                                                    style={{ padding: '6px 12px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                                                                    onClick={async () => {
+                                                                        if (!confirm(`Tem certeza que deseja ZERAR os pontos de ${u.name}?\n\nIsso vai remover todas as ${u.totalCompletionsCount} conclusões e ${u.totalPoints} pontos (total geral).`)) return;
+                                                                        try {
+                                                                            const res = await fetch(`/api/admin/users/${u.id}`, {
+                                                                                method: 'PUT',
+                                                                                headers: { 'Content-Type': 'application/json' },
+                                                                                body: JSON.stringify({ action: 'reset-points' }),
+                                                                            });
+                                                                            const data = await res.json();
+                                                                            showToast(data.message || data.error, res.ok ? 'success' : 'error');
+                                                                            if (res.ok) fetchAll();
+                                                                        } catch {
+                                                                            showToast('Erro de conexão', 'error');
+                                                                        }
+                                                                    }}
+                                                                    disabled={u.totalCompletionsCount === 0}
+                                                                    title={u.totalCompletionsCount === 0 ? 'Nenhum ponto para zerar' : `Zerar ${u.totalPoints} pontos (total geral)`}
+                                                                >
+                                                                    🔄 Zerar Pontos
+                                                                </button>
+                                                                <button
+                                                                    className="btn-danger"
+                                                                    style={{ padding: '6px 12px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                                                                    onClick={async () => {
+                                                                        if (!confirm(`⚠️ ATENÇÃO!\n\nVocê está prestes a EXCLUIR a conta de ${u.name} (${u.codeforcesHandle}).\n\nIsso irá remover:\n• A conta da usuária\n• Todas as ${u.totalCompletionsCount} conclusões\n• Todos os ${u.totalPoints} pontos\n\nEssa ação NÃO pode ser desfeita!`)) return;
+                                                                        try {
+                                                                            const res = await fetch(`/api/admin/users/${u.id}`, { method: 'DELETE' });
+                                                                            const data = await res.json();
+                                                                            showToast(data.message || data.error, res.ok ? 'success' : 'error');
+                                                                            if (res.ok) fetchAll();
+                                                                        } catch {
+                                                                            showToast('Erro de conexão', 'error');
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    🗑️ Excluir
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
+                                        );
+                                    })}
+                                    {users.length === 0 && (
+                                        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                                            <p>Nenhuma usuária cadastrada.</p>
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             </div>
                         )}

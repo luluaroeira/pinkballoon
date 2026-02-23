@@ -7,7 +7,11 @@ export async function POST(request: NextRequest) {
     try {
         // Check for cron secret
         const cronSecret = request.headers.get('x-cron-secret');
+        if (!process.env.CRON_SECRET && process.env.NODE_ENV === 'production') {
+            console.warn('⚠️ CRON_SECRET not set in production! Using fallback.');
+        }
         const validSecret = process.env.CRON_SECRET || 'pinkballoon_secret_key_123';
+
         const isCron = cronSecret === validSecret;
 
         // Check for admin session

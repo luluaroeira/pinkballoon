@@ -10,6 +10,11 @@ export async function GET() {
             return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
         }
 
+        // Fetch active period for filtering
+        const activePeriod = await prisma.scoringPeriod.findFirst({
+            where: { isActive: true }
+        });
+
         const users = await prisma.user.findMany({
             select: {
                 id: true,
@@ -37,7 +42,30 @@ export async function GET() {
             orderBy: { createdAt: 'desc' }
         });
 
-        return NextResponse.json({ users });
+        // Add period-filtered points to each user
+        const usersWithPeriodData = users.map(user => {
+            let periodCompletions = user.completions;
+            if (activePeriod) {
+                const start = new Date(activePeriod.startDate).getTime();
+                const end = new Date(activePeriod.endDate).getTime();
+                periodCompletions = user.completions.filter(c => {
+                    const t = new Date(c.completedAt).getTime();
+                    return t >= start && t <= end;
+                });
+            }
+            return {
+                ...user,
+                periodPoints: periodCompletions.reduce((s, c) => s + c.pointsAwarded, 0),
+                periodCompletionsCount: periodCompletions.length,
+                totalPoints: user.completions.reduce((s, c) => s + c.pointsAwarded, 0),
+                totalCompletionsCount: user.completions.length,
+            };
+        });
+
+        return NextResponse.json({
+            users: usersWithPeriodData,
+            activePeriod: activePeriod ? { name: activePeriod.name } : null,
+        });
     } catch (error) {
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
     }
