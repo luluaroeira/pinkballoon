@@ -21,10 +21,7 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: 'A nova senha deve ter no mínimo 6 caracteres' }, { status: 400 });
         }
 
-        // Prevent admin password change
-        if (session.role === 'admin') {
-            return NextResponse.json({ error: 'A conta de ADMIN não pode alterar a senha! 🔒' }, { status: 403 });
-        }
+        // Allow admin password change (previously blocked)
         const user = await prisma.user.findUnique({
             where: { id: session.userId },
         });

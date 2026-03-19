@@ -16,7 +16,7 @@ const prisma = new PrismaClient({
 
 async function main() {
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@pinkballoon.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'PinkInCommand';
     const adminName = process.env.ADMIN_NAME || 'Admin PinkBalloon';
     const adminHandle = process.env.ADMIN_CF_HANDLE || 'tourist';
 

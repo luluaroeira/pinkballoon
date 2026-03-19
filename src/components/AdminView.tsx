@@ -481,7 +481,11 @@ export default function AdminView() {
                                                 <div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                         <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{p.name}</span>
-                                                        {p.isActive && <span className="badge badge-success">ATIVO AGORA</span>}
+                                                        {p.isActive && (
+                                                            <span className={`badge ${new Date() > new Date(new Date(p.endDate).setHours(23, 59, 59)) ? 'badge-warning' : 'badge-success'}`}>
+                                                                {new Date() > new Date(new Date(p.endDate).setHours(23, 59, 59)) ? 'ENCERRADO (Visível no Ranking)' : 'ATIVO AGORA (Ranking)'}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
                                                         📅 {new Date(p.startDate).toLocaleDateString('pt-BR')} até {new Date(p.endDate).toLocaleDateString('pt-BR')}

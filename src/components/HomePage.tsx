@@ -299,6 +299,34 @@ export default function HomePage() {
                         </p>
                     )}
                 </div>
+                {/* Info Card - Como funciona o Ranking */}
+                <div className="card animate-fade-in" style={{ animationDelay: '0.5s', gridColumn: '1 / -1' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                        <span style={{ fontSize: '1.5rem' }}>🏆</span>
+                        <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Como Funciona o Ranking?</h2>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+                        <p>
+                            ⏱️ <strong>Sincronização Automática:</strong> O nosso sistema verifica as suas submissões no <strong>Codeforces</strong> a cada <strong>3 minutos</strong>. Isso significa que, após você submeter uma resposta correta lá, pode levar alguns minutos até os pontos aparecerem aqui. Apenas problemas com status <span style={{ color: 'var(--green-400)', fontWeight: 600 }}>Accepted (OK)</span> geram pontos!
+                        </p>
+
+                        <p>
+                            🎯 <strong>Exercícios (Missões):</strong> Se você resolver um &quot;Exercício do Dia&quot; ou &quot;Da Semana&quot; dentro do prazo, você ganha a pontuação indicada no card da missão correspondente.
+                        </p>
+
+                        <div>
+                            <p style={{ marginBottom: '10px' }}>💪 <strong>Prática Livre (Qualquer problema):</strong> Você também ganha pontos extras praticando outros problemas livres do Codeforces! A pontuação depende da dificuldade (Rating) oficial do problema resolvido:</p>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>1 pt</span> <span>Até 1000 <em>(ou sem rank)</em></span></div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>2 pts</span> <span>Rating 1100 a 1299</span></div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>3 pts</span> <span>Rating 1300 a 1499</span></div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>4 pts</span> <span>Rating 1500 a 1699</span></div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>5 pts</span> <span>Rating 1700+</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );

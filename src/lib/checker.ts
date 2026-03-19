@@ -131,13 +131,11 @@ async function processUser(user: any, activeExercises: any[]) {
                 // 2. Practice Points based on Rating
                 const rating = sub.problem.rating || 0;
 
-                if (rating < 800) points = 1; // Unrated or low
-                else if (rating >= 800 && rating <= 999) points = 1;
-                else if (rating >= 1000 && rating <= 1199) points = 2;
-                else if (rating >= 1200 && rating <= 1399) points = 3;
-                else if (rating >= 1400 && rating <= 1599) points = 4;
-                else if (rating >= 1600) points = 5;
-                else points = 1; // Fallback
+                if (rating <= 1000) points = 1; // Unrated or <= 1000
+                else if (rating >= 1100 && rating <= 1299) points = 2;
+                else if (rating >= 1300 && rating <= 1499) points = 3;
+                else if (rating >= 1500 && rating <= 1699) points = 4;
+                else if (rating >= 1700) points = 5;
             }
 
             // Save Completion
