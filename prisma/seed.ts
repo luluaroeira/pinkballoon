@@ -4,8 +4,9 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@pinkballoon.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'PinkInCommand';
+    const adminEmail = 'admin@pinkballoon.com';
+    // Forcing manual overwrite locally or in Vercel.
+    const adminPassword = 'PinkInCommand';
     const adminName = process.env.ADMIN_NAME || 'Admin PinkBalloon';
     const adminHandle = process.env.ADMIN_CF_HANDLE || 'tourist';
 
