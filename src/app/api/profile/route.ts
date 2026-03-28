@@ -22,12 +22,10 @@ export async function PUT(request: NextRequest) {
 
         if (codeforcesHandle) {
             // Check if handle is already in use by another user (case-insensitive)
-            const existingHandle = await prisma.user.findFirst({
-                where: {
-                    codeforcesHandle: { equals: codeforcesHandle, mode: 'insensitive' },
-                    id: { not: session.userId },
-                },
-            });
+            const allUsers = await prisma.user.findMany({ select: { id: true, codeforcesHandle: true } });
+            const existingHandle = allUsers.find(
+                u => u.codeforcesHandle.toLowerCase() === codeforcesHandle.toLowerCase() && u.id !== session.userId
+            );
             if (existingHandle) {
                 return NextResponse.json(
                     { error: 'Este handle do Codeforces já está cadastrado por outro usuário.' },

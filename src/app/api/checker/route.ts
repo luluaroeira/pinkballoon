@@ -2,7 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { runExerciseChecker } from '@/lib/checker';
 
-// POST /api/checker - manually trigger (admin) or automated (cron)
+// GET /api/checker - Vercel Cron Jobs (authenticates via Authorization: Bearer <CRON_SECRET>)
+export async function GET(request: NextRequest) {
+    try {
+        const authHeader = request.headers.get('authorization');
+        const validSecret = process.env.CRON_SECRET || 'pinkballoon_secret_key_123';
+
+        if (authHeader !== `Bearer ${validSecret}`) {
+            return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+        }
+
+        await runExerciseChecker();
+
+        return NextResponse.json({ message: 'Verificação concluída com sucesso!' });
+    } catch (error) {
+        console.error('Checker cron error:', error);
+        return NextResponse.json({ error: 'Erro ao executar verificação' }, { status: 500 });
+    }
+}
+
+// POST /api/checker - manually trigger (admin) or automated (local cron)
 export async function POST(request: NextRequest) {
     try {
         // Check for cron secret

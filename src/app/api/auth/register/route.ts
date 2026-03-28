@@ -33,9 +33,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Check if Codeforces handle is already in use (case-insensitive)
-        const existingHandle = await prisma.user.findFirst({
-            where: { codeforcesHandle: { equals: codeforcesHandle, mode: 'insensitive' } },
-        });
+        const allUsers = await prisma.user.findMany({ select: { id: true, codeforcesHandle: true } });
+        const existingHandle = allUsers.find(
+            u => u.codeforcesHandle.toLowerCase() === codeforcesHandle.toLowerCase()
+        );
         if (existingHandle) {
             return NextResponse.json(
                 { error: 'Este handle do Codeforces já está cadastrado por outro usuário.' },
