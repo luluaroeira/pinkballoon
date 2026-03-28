@@ -21,10 +21,10 @@ async function triggerChecker() {
     }
 }
 
-// Run every 3 minutes
-cron.schedule('*/3 * * * *', () => {
+// Run every 10 minutes
+cron.schedule('*/10 * * * *', () => {
     triggerChecker();
 });
 
-console.log('🕐 PinkBalloon Cron Scheduler started (every 3 minutes)');
+console.log('🕐 PinkBalloon Cron Scheduler started (every 10 minutes)');
 console.log('Press Ctrl+C to stop.');

@@ -840,7 +840,7 @@ export default function AdminView() {
                                         🔍 Executar Verificação Agora
                                     </button>
                                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '16px' }}>
-                                        Dica: Configure o cron job para verificação automática a cada 3 minutos.
+                                        Dica: Configure o cron job para verificação automática a cada 10 minutos.
                                     </p>
                                 </div>
                             </div>

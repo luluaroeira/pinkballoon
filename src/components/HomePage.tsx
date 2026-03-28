@@ -308,7 +308,7 @@ export default function HomePage() {
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>
                         <p>
-                            ⏱️ <strong>Sincronização Automática:</strong> O nosso sistema verifica as suas submissões no <strong>Codeforces</strong> a cada <strong>3 minutos</strong>. Isso significa que, após você submeter uma resposta correta lá, pode levar alguns minutos até os pontos aparecerem aqui. Apenas problemas com status <span style={{ color: 'var(--green-400)', fontWeight: 600 }}>Accepted (OK)</span> geram pontos!
+                            ⏱️ <strong>Sincronização Automática:</strong> O nosso sistema verifica as suas submissões no <strong>Codeforces</strong> a cada <strong>10 minutos</strong>. Isso significa que, após você submeter uma resposta correta lá, pode levar alguns minutos até os pontos aparecerem aqui. Apenas problemas com status <span style={{ color: 'var(--green-400)', fontWeight: 600 }}>Accepted (OK)</span> geram pontos!
                         </p>
 
                         <p>

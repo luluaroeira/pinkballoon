@@ -208,7 +208,7 @@ export default function DashboardView() {
                         fontSize: '0.8rem', color: 'var(--text-secondary)'
                     }}>
                         <span>⏳</span>
-                        <span>As pontuações são atualizadas automaticamente a cada 3 minutos. Após submeter no Codeforces, aguarde um pouquinho para ver seus pontos aqui!</span>
+                        <span>As pontuações são atualizadas automaticamente a cada 10 minutos. Após submeter no Codeforces, aguarde um pouquinho para ver seus pontos aqui!</span>
                     </div>
                 </div>
 
