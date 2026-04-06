@@ -1,22 +1,40 @@
 import prisma from './prisma';
 import { getUserSubmissions, CFSubmission } from './codeforces';
 
-export async function runExerciseChecker() {
+interface CheckerResult {
+    usersChecked: number;
+    activeExercises: number;
+    newCompletions: number;
+    errors: string[];
+}
+
+export async function runExerciseChecker(): Promise<CheckerResult> {
     console.log('[Checker] Starting master exercise check cycle...');
+
+    const result: CheckerResult = {
+        usersChecked: 0,
+        activeExercises: 0,
+        newCompletions: 0,
+        errors: [],
+    };
 
     try {
         // 1. Get active TARGET exercises (Daily/Weekly)
-        // Only consider published exercises that haven't expired yet for target points
+        // Include exercises that expired up to 24h ago so we can still
+        // credit submissions made before expiry that weren't checked yet
         const now = new Date();
+        const gracePeriod = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         const activeExercises = await prisma.exercise.findMany({
             where: {
                 publishedAt: { lte: now },
                 OR: [
                     { expiresAt: null },
-                    { expiresAt: { gt: now } }
+                    { expiresAt: { gt: gracePeriod } }
                 ]
             }
         });
+
+        result.activeExercises = activeExercises.length;
 
         // 2. Get Users
         const users = await prisma.user.findMany({
@@ -26,19 +44,28 @@ export async function runExerciseChecker() {
         console.log(`[Checker] Checking ${users.length} users against ${activeExercises.length} active targets + general practice...`);
 
         for (const user of users) {
-            await processUser(user, activeExercises);
-            // Small delay between users to be nice to API? Not strictly needed if sequential.
-            await new Promise(r => setTimeout(r, 500));
+            const userResult = await processUser(user, activeExercises);
+            result.usersChecked++;
+            result.newCompletions += userResult.completions;
+            if (userResult.error) result.errors.push(userResult.error);
+            // Short delay between users to be nice to CF API
+            await new Promise(r => setTimeout(r, 300));
         }
 
-        console.log('[Checker] Cycle complete.');
+        console.log(`[Checker] Cycle complete. ${result.newCompletions} new completions found.`);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('[Checker] Critical error in check cycle:', error);
+        result.errors.push(error.message || 'Critical error');
     }
+
+    return result;
 }
 
-async function processUser(user: any, activeExercises: any[]) {
+
+async function processUser(user: any, activeExercises: any[]): Promise<{ completions: number; error?: string }> {
+    let completions = 0;
+
     try {
         // Fetch submissions.
         // Strategy: Fetch page by page until we hit the lastCheckedSubmissionId
@@ -80,7 +107,7 @@ async function processUser(user: any, activeExercises: any[]) {
 
         if (newSubmissions.length === 0) {
             console.log(`[Checker] No new submissions for ${user.codeforcesHandle}.`);
-            return;
+            return { completions: 0 };
         }
 
         console.log(`[Checker] Processing ${newSubmissions.length} new submissions for ${user.codeforcesHandle}...`);
@@ -155,7 +182,7 @@ async function processUser(user: any, activeExercises: any[]) {
                     }
                 });
 
-                // Audit log? Optional, keeping DB clean.
+                completions++;
                 console.log(`[Checker] ✅ Awarded ${points} pts to ${user.codeforcesHandle} for problem ${sub.problem.contestId}${sub.problem.index} [${type}]`);
 
             } catch (err: any) {
@@ -173,7 +200,10 @@ async function processUser(user: any, activeExercises: any[]) {
             data: { lastCheckedSubmissionId: maxProcessedId }
         });
 
-    } catch (err) {
+    } catch (err: any) {
         console.error(`[Checker] Error processing user ${user.codeforcesHandle}:`, err);
+        return { completions, error: `${user.codeforcesHandle}: ${err.message}` };
     }
+
+    return { completions };
 }

@@ -2,22 +2,49 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { runExerciseChecker } from '@/lib/checker';
 
-// GET /api/checker - Vercel Cron Jobs (authenticates via Authorization: Bearer <CRON_SECRET>)
+// Allow up to 60s for the checker to complete (Vercel default is 10s)
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
+// GET /api/checker - Vercel Cron Jobs
+// Vercel sends: Authorization: Bearer <CRON_SECRET>
 export async function GET(request: NextRequest) {
     try {
         const authHeader = request.headers.get('authorization');
-        const validSecret = process.env.CRON_SECRET || 'pinkballoon_secret_key_123';
+        const cronSecret = process.env.CRON_SECRET;
 
-        if (authHeader !== `Bearer ${validSecret}`) {
-            return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+        // If CRON_SECRET is configured, verify it
+        if (cronSecret) {
+            if (authHeader !== `Bearer ${cronSecret}`) {
+                console.warn('[Cron GET] Unauthorized: invalid Bearer token');
+                return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+            }
+        } else {
+            // No CRON_SECRET configured - accept Vercel Cron user-agent OR the fallback
+            const userAgent = request.headers.get('user-agent') || '';
+            const fallbackSecret = 'pinkballoon_secret_key_123';
+            if (!userAgent.includes('vercel-cron') && authHeader !== `Bearer ${fallbackSecret}`) {
+                console.warn('[Cron GET] Unauthorized: no CRON_SECRET and not vercel-cron UA');
+                return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+            }
         }
 
-        await runExerciseChecker();
+        console.log(`[Cron GET] Exercise check triggered at ${new Date().toISOString()}`);
+        const startTime = Date.now();
+        const result = await runExerciseChecker();
+        const elapsed = Date.now() - startTime;
 
-        return NextResponse.json({ message: 'Verificação concluída com sucesso!' });
-    } catch (error) {
-        console.error('Checker cron error:', error);
-        return NextResponse.json({ error: 'Erro ao executar verificação' }, { status: 500 });
+        console.log(`[Cron GET] Completed in ${elapsed}ms`);
+
+        return NextResponse.json({
+            ok: true,
+            message: `Verificação concluída em ${(elapsed / 1000).toFixed(1)}s! ✅`,
+            ...result,
+            elapsedMs: elapsed,
+        });
+    } catch (error: any) {
+        console.error('[Cron GET] Error:', error);
+        return NextResponse.json({ error: `Erro: ${error.message}` }, { status: 500 });
     }
 }
 
@@ -26,9 +53,6 @@ export async function POST(request: NextRequest) {
     try {
         // Check for cron secret
         const cronSecret = request.headers.get('x-cron-secret');
-        if (!process.env.CRON_SECRET && process.env.NODE_ENV === 'production') {
-            console.warn('⚠️ CRON_SECRET not set in production! Using fallback.');
-        }
         const validSecret = process.env.CRON_SECRET || 'pinkballoon_secret_key_123';
 
         const isCron = cronSecret === validSecret;
@@ -41,11 +65,19 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
         }
 
-        await runExerciseChecker();
+        console.log(`[Checker POST] Manual check triggered at ${new Date().toISOString()}`);
+        const startTime = Date.now();
+        const result = await runExerciseChecker();
+        const elapsed = Date.now() - startTime;
 
-        return NextResponse.json({ message: 'Verificação concluída com sucesso!' });
-    } catch (error) {
-        console.error('Checker error:', error);
-        return NextResponse.json({ error: 'Erro ao executar verificação' }, { status: 500 });
+        return NextResponse.json({
+            ok: true,
+            message: `Verificação concluída em ${(elapsed / 1000).toFixed(1)}s! ✅`,
+            ...result,
+            elapsedMs: elapsed,
+        });
+    } catch (error: any) {
+        console.error('[Checker POST] Error:', error);
+        return NextResponse.json({ error: `Erro: ${error.message}` }, { status: 500 });
     }
 }
