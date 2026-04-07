@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { maybeRunChecker } from '@/lib/auto-checker';
 
 // GET /api/exercises - Get exercises for the current user
 export async function GET(request: NextRequest) {
+    after(async () => { await maybeRunChecker(); });
     try {
         const session = await getSession();
         if (!session) {

@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { maybeRunChecker } from '@/lib/auto-checker';
 
 // GET /api/dashboard
 export async function GET() {
+    // Trigger checker in background after response is sent (if 10+ min since last run)
+    after(async () => {
+        await maybeRunChecker();
+    });
     try {
         const session = await getSession();
         if (!session) {
