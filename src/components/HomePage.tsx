@@ -318,11 +318,11 @@ export default function HomePage() {
                         <div>
                             <p style={{ marginBottom: '10px' }}>💪 <strong>Prática Livre (Qualquer problema):</strong> Você também ganha pontos extras praticando outros problemas livres do Codeforces! A pontuação depende da dificuldade (Rating) oficial do problema resolvido:</p>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>1 pt</span> <span>Até 1000 <em>(ou sem rank)</em></span></div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>2 pts</span> <span>Rating 1100 a 1299</span></div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>3 pts</span> <span>Rating 1300 a 1499</span></div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>4 pts</span> <span>Rating 1500 a 1699</span></div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>5 pts</span> <span>Rating 1700+</span></div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>1 pt</span> <span>Rating 800 a 900</span></div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>2 pts</span> <span>Rating 1200 a 1300</span></div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>3 pts</span> <span>Rating 1400 a 1500</span></div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>4 pts</span> <span>Rating 1600 a 1700</span></div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className="badge badge-points" style={{ minWidth: '40px', textAlign: 'center' }}>5 pts</span> <span>Rating 1800+</span></div>
                             </div>
                         </div>
                     </div>
