@@ -20,6 +20,7 @@ model User {
 
   completions     ExerciseCompletion[]
   resetTokens     PasswordResetToken[]
+  rankingMemberships RankingMembership[]
 }
 
 model PasswordResetToken {
@@ -94,4 +95,33 @@ model ScoringPeriod {
   isActive  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  rankings  Ranking[]
+}
+
+model Ranking {
+  id              Int       @id @default(autoincrement())
+  name            String
+  description     String?
+  scoringPeriodId Int
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  scoringPeriod   ScoringPeriod     @relation(fields: [scoringPeriodId], references: [id])
+  memberships     RankingMembership[]
+}
+
+model RankingMembership {
+  id        Int      @id @default(autoincrement())
+  rankingId Int
+  userId    Int
+  status    String   @default("pending") // "pending", "approved", "rejected"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ranking   Ranking  @relation(fields: [rankingId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([rankingId, userId])
 }

@@ -45,13 +45,12 @@ export async function GET() {
         // Total points (based on filtered completions)
         const totalPoints = completions.reduce((sum, c) => sum + c.pointsAwarded, 0);
 
-        // Daily and weekly counts (use stored type on completion)
+        // Daily and weekly counts - count by the exercise's type (daily/weekly targets)
         const dailyCompleted = completions.filter(c => c.type === 'daily').length;
         const weeklyCompleted = completions.filter(c => c.type === 'weekly').length;
 
-        // Calculate streak (consecutive days with daily exercise completed)
-        const dailyCompletions = completions
-            .filter(c => c.type === 'daily')
+        // Calculate streak (consecutive days with ANY exercise completed - daily, weekly, or practice)
+        const allCompletionDates = completions
             .map(c => {
                 const d = new Date(c.completedAt);
                 return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -64,7 +63,7 @@ export async function GET() {
         let bestStreak = 0;
         let tempStreak = 0;
 
-        if (dailyCompletions.length > 0) {
+        if (allCompletionDates.length > 0) {
             const today = new Date();
             const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             const yesterday = new Date(today);
@@ -72,11 +71,11 @@ export async function GET() {
             const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
 
             // Current streak
-            if (dailyCompletions[0] === todayStr || dailyCompletions[0] === yesterdayStr) {
+            if (allCompletionDates[0] === todayStr || allCompletionDates[0] === yesterdayStr) {
                 currentStreak = 1;
-                for (let i = 1; i < dailyCompletions.length; i++) {
-                    const prev = new Date(dailyCompletions[i - 1]);
-                    const curr = new Date(dailyCompletions[i]);
+                for (let i = 1; i < allCompletionDates.length; i++) {
+                    const prev = new Date(allCompletionDates[i - 1]);
+                    const curr = new Date(allCompletionDates[i]);
                     const diff = (prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24);
                     if (Math.abs(diff - 1) < 0.1) {
                         currentStreak++;
@@ -87,7 +86,7 @@ export async function GET() {
             }
 
             // Best streak
-            const sorted = [...dailyCompletions].sort();
+            const sorted = [...allCompletionDates].sort();
             tempStreak = 1;
             bestStreak = 1;
             for (let i = 1; i < sorted.length; i++) {
@@ -104,32 +103,32 @@ export async function GET() {
             bestStreak = Math.max(bestStreak, currentStreak);
         }
 
-        // Weekly points chart (last 12 weeks)
-        const weeklyPoints: { week: string; points: number }[] = [];
+        // Daily points chart (last 30 days, day by day)
+        const dailyPoints: { day: string; points: number }[] = [];
         const now = new Date();
-        for (let i = 11; i >= 0; i--) {
-            const weekStart = new Date(now);
-            weekStart.setDate(weekStart.getDate() - (i * 7 + weekStart.getDay()));
-            weekStart.setHours(0, 0, 0, 0);
-            const weekEnd = new Date(weekStart);
-            weekEnd.setDate(weekEnd.getDate() + 7);
+        for (let i = 29; i >= 0; i--) {
+            const dayDate = new Date(now);
+            dayDate.setDate(dayDate.getDate() - i);
+            dayDate.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(dayDate);
+            dayEnd.setHours(23, 59, 59, 999);
 
-            const weekPoints = completions
+            const dayPts = completions
                 .filter(c => {
                     const d = new Date(c.completedAt);
-                    return d >= weekStart && d < weekEnd;
+                    return d >= dayDate && d <= dayEnd;
                 })
                 .reduce((sum, c) => sum + c.pointsAwarded, 0);
 
-            const label = `${String(weekStart.getDate()).padStart(2, '0')}/${String(weekStart.getMonth() + 1).padStart(2, '0')}`;
-            weeklyPoints.push({ week: label, points: weekPoints });
+            const label = `${String(dayDate.getDate()).padStart(2, '0')}/${String(dayDate.getMonth() + 1).padStart(2, '0')}`;
+            dailyPoints.push({ day: label, points: dayPts });
         }
 
-        // Completed exercises list
+        // Completed exercises list (all types)
         const completedExercises = completions.map(c => ({
             id: c.id,
             exerciseId: c.exerciseId || 0,
-            type: c.type, // Use stored type
+            type: c.type, // daily, weekly, or practice
             contestId: c.contestId || c.exercise?.contestId || 0,
             problemIndex: c.problemIndex || c.exercise?.problemIndex || '',
             title: c.problemName || c.exercise?.title || null,
@@ -142,9 +141,10 @@ export async function GET() {
             totalPoints,
             dailyCompleted,
             weeklyCompleted,
+            practiceCompleted: completions.filter(c => c.type === 'practice').length,
             currentStreak,
             bestStreak,
-            weeklyPoints,
+            dailyPoints,
             completedExercises,
             memberSince: user.createdAt,
         });

@@ -6,9 +6,10 @@ interface DashboardData {
     totalPoints: number;
     dailyCompleted: number;
     weeklyCompleted: number;
+    practiceCompleted: number;
     currentStreak: number;
     bestStreak: number;
-    weeklyPoints: { week: string; points: number }[];
+    dailyPoints: { day: string; points: number }[];
     completedExercises: {
         id: number;
         exerciseId: number;
@@ -28,6 +29,7 @@ export default function DashboardView() {
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [hoveredBar, setHoveredBar] = useState<{ index: number; x: number; y: number } | null>(null);
 
     const fetchDashboard = useCallback(async () => {
         try {
@@ -45,7 +47,7 @@ export default function DashboardView() {
         fetchDashboard();
     }, [fetchDashboard]);
 
-    // Draw chart manually (no external chart library needed for this simple one)
+    // Draw bar chart (day by day)
     useEffect(() => {
         if (!data || !canvasRef.current) return;
 
@@ -61,21 +63,22 @@ export default function DashboardView() {
 
         const w = rect.width;
         const h = rect.height;
-        const padding = { top: 20, right: 20, bottom: 40, left: 40 };
+        const padding = { top: 20, right: 16, bottom: 50, left: 36 };
         const chartW = w - padding.left - padding.right;
         const chartH = h - padding.top - padding.bottom;
 
-        const points = data.weeklyPoints;
+        const points = data.dailyPoints;
         const maxPoints = Math.max(...points.map(p => p.points), 1);
 
         // Clear
         ctx.clearRect(0, 0, w, h);
 
-        // Grid lines
-        ctx.strokeStyle = 'rgba(168, 85, 247, 0.1)';
+        // Grid lines (horizontal)
+        const gridLines = 4;
+        ctx.strokeStyle = 'rgba(168, 85, 247, 0.08)';
         ctx.lineWidth = 1;
-        for (let i = 0; i <= 4; i++) {
-            const y = padding.top + (chartH / 4) * i;
+        for (let i = 0; i <= gridLines; i++) {
+            const y = padding.top + (chartH / gridLines) * i;
             ctx.beginPath();
             ctx.moveTo(padding.left, y);
             ctx.lineTo(w - padding.right, y);
@@ -84,81 +87,106 @@ export default function DashboardView() {
 
         // Y-axis labels
         ctx.fillStyle = '#8b7a9e';
-        ctx.font = '11px Inter, sans-serif';
+        ctx.font = '10px Inter, sans-serif';
         ctx.textAlign = 'right';
-        for (let i = 0; i <= 4; i++) {
-            const y = padding.top + (chartH / 4) * i;
-            const value = Math.round(maxPoints * (1 - i / 4));
-            ctx.fillText(String(value), padding.left - 8, y + 4);
+        for (let i = 0; i <= gridLines; i++) {
+            const y = padding.top + (chartH / gridLines) * i;
+            const value = Math.round(maxPoints * (1 - i / gridLines));
+            ctx.fillText(String(value), padding.left - 6, y + 4);
         }
 
-        // Draw area gradient
-        const gradient = ctx.createLinearGradient(0, padding.top, 0, h - padding.bottom);
-        gradient.addColorStop(0, 'rgba(236, 72, 153, 0.3)');
-        gradient.addColorStop(1, 'rgba(236, 72, 153, 0.0)');
+        // Bar dimensions
+        const totalBars = points.length;
+        const barGap = 2;
+        const barWidth = Math.max(2, (chartW - barGap * (totalBars - 1)) / totalBars);
 
-        ctx.beginPath();
-        ctx.moveTo(padding.left, padding.top + chartH);
-        points.forEach((p, i) => {
-            const x = padding.left + (chartW / (points.length - 1)) * i;
-            const y = padding.top + chartH - (p.points / maxPoints) * chartH;
-            ctx.lineTo(x, y);
-        });
-        ctx.lineTo(padding.left + chartW, padding.top + chartH);
-        ctx.closePath();
-        ctx.fillStyle = gradient;
-        ctx.fill();
-
-        // Draw line
-        ctx.beginPath();
-        const lineGradient = ctx.createLinearGradient(padding.left, 0, w - padding.right, 0);
-        lineGradient.addColorStop(0, '#ec4899');
-        lineGradient.addColorStop(0.5, '#a855f7');
-        lineGradient.addColorStop(1, '#6366f1');
-        ctx.strokeStyle = lineGradient;
-        ctx.lineWidth = 2.5;
-        ctx.lineJoin = 'round';
+        // Draw bars
+        const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+        gradient.addColorStop(0, '#ec4899');
+        gradient.addColorStop(0.5, '#a855f7');
+        gradient.addColorStop(1, '#6366f1');
 
         points.forEach((p, i) => {
-            const x = padding.left + (chartW / (points.length - 1)) * i;
-            const y = padding.top + chartH - (p.points / maxPoints) * chartH;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
+            const x = padding.left + i * (barWidth + barGap);
+            const barH = (p.points / maxPoints) * chartH;
+            const y = padding.top + chartH - barH;
 
-        // Draw dots
-        points.forEach((p, i) => {
-            const x = padding.left + (chartW / (points.length - 1)) * i;
-            const y = padding.top + chartH - (p.points / maxPoints) * chartH;
+            if (p.points > 0) {
+                // Bar glow
+                ctx.save();
+                ctx.shadowColor = 'rgba(236, 72, 153, 0.3)';
+                ctx.shadowBlur = 6;
+                ctx.shadowOffsetY = 2;
 
-            // Glow
-            ctx.beginPath();
-            ctx.arc(x, y, 6, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(236, 72, 153, 0.3)';
-            ctx.fill();
+                // Rounded top bar
+                const radius = Math.min(barWidth / 2, 4);
+                ctx.beginPath();
+                ctx.moveTo(x, y + radius);
+                ctx.arcTo(x, y, x + barWidth, y, radius);
+                ctx.arcTo(x + barWidth, y, x + barWidth, y + barH, radius);
+                ctx.lineTo(x + barWidth, padding.top + chartH);
+                ctx.lineTo(x, padding.top + chartH);
+                ctx.closePath();
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                ctx.restore();
 
-            // Dot
-            ctx.beginPath();
-            ctx.arc(x, y, 3.5, 0, Math.PI * 2);
-            ctx.fillStyle = '#ec4899';
-            ctx.fill();
-            ctx.strokeStyle = '#1a1128';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-        });
-
-        // X-axis labels
-        ctx.fillStyle = '#8b7a9e';
-        ctx.font = '10px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        points.forEach((p, i) => {
-            if (i % 2 === 0 || points.length <= 6) {
-                const x = padding.left + (chartW / (points.length - 1)) * i;
-                ctx.fillText(p.week, x, h - 8);
+                // Point value on top of bar
+                if (barH > 18) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 9px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(String(p.points), x + barWidth / 2, y - 4);
+                }
+            } else {
+                // Subtle empty indicator
+                ctx.fillStyle = 'rgba(168, 85, 247, 0.06)';
+                ctx.fillRect(x, padding.top + chartH - 2, barWidth, 2);
             }
         });
+
+        // X-axis labels (show every few days to avoid overlap)
+        ctx.fillStyle = '#8b7a9e';
+        ctx.font = '9px Inter, sans-serif';
+        ctx.textAlign = 'center';
+
+        // Show labels every N days based on total count  
+        const step = totalBars <= 14 ? 1 : totalBars <= 21 ? 2 : 3;
+        points.forEach((p, i) => {
+            if (i % step === 0 || i === totalBars - 1) {
+                const x = padding.left + i * (barWidth + barGap) + barWidth / 2;
+                ctx.save();
+                ctx.translate(x, h - 6);
+                ctx.rotate(-Math.PI / 4);
+                ctx.textAlign = 'right';
+                ctx.fillText(p.day, 0, 0);
+                ctx.restore();
+            }
+        });
+
     }, [data]);
+
+    // Handle hover on canvas
+    const handleCanvasHover = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (!data || !canvasRef.current) return;
+
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+
+        const points = data.dailyPoints;
+        const padding = { left: 36, right: 16, top: 20, bottom: 50 };
+        const chartW = rect.width - padding.left - padding.right;
+        const barGap = 2;
+        const barWidth = Math.max(2, (chartW - barGap * (points.length - 1)) / points.length);
+
+        const index = Math.floor((mouseX - padding.left) / (barWidth + barGap));
+        if (index >= 0 && index < points.length && points[index].points > 0) {
+            setHoveredBar({ index, x: e.clientX - rect.left, y: e.clientY - rect.top });
+        } else {
+            setHoveredBar(null);
+        }
+    };
 
     if (loading) {
         return (
@@ -182,6 +210,14 @@ export default function DashboardView() {
             </div>
         );
     }
+
+    const totalExercises = data.completedExercises.length;
+
+    const getTypeBadge = (type: string) => {
+        if (type === 'daily') return { cls: 'badge-daily', label: 'Diário' };
+        if (type === 'weekly') return { cls: 'badge-weekly', label: 'Semanal' };
+        return { cls: 'badge-points', label: 'Prática' };
+    };
 
     return (
         <div className="page-container">
@@ -235,7 +271,7 @@ export default function DashboardView() {
                         <div className="stat-value">
                             <span className="streak-fire">🔥</span> {data.currentStreak}
                         </div>
-                        <div className="stat-label">Streak Atual</div>
+                        <div className="stat-label">Streak Atual (dias)</div>
                     </div>
                     <div className="stat-card">
                         <div className="stat-value">⭐ {data.bestStreak}</div>
@@ -259,26 +295,53 @@ export default function DashboardView() {
                     </div>
                 )}
 
-                {/* Chart */}
+                {/* Chart - Day by Day */}
                 <div className="card" style={{ marginBottom: '24px' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '16px' }}>
-                        📈 Pontos por Semana
+                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '4px' }}>
+                        📈 Pontos por Dia
                     </h3>
-                    <div style={{ width: '100%', height: '250px' }}>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                        Últimos 30 dias • Cada barra representa os pontos ganhos em um dia
+                    </p>
+                    <div style={{ width: '100%', height: '280px', position: 'relative' }}>
                         <canvas
                             ref={canvasRef}
-                            style={{ width: '100%', height: '100%' }}
+                            style={{ width: '100%', height: '100%', cursor: 'crosshair' }}
+                            onMouseMove={handleCanvasHover}
+                            onMouseLeave={() => setHoveredBar(null)}
                         />
+                        {/* Tooltip */}
+                        {hoveredBar && data.dailyPoints[hoveredBar.index] && (
+                            <div style={{
+                                position: 'absolute',
+                                left: hoveredBar.x,
+                                top: hoveredBar.y - 40,
+                                transform: 'translateX(-50%)',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--card-border)',
+                                borderRadius: '8px',
+                                padding: '6px 12px',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                color: 'var(--text-primary)',
+                                pointerEvents: 'none',
+                                whiteSpace: 'nowrap',
+                                zIndex: 10,
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                            }}>
+                                {data.dailyPoints[hoveredBar.index].day}: <span className="gradient-text">{data.dailyPoints[hoveredBar.index].points} pts</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Completed exercises */}
                 <div className="card">
                     <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '16px' }}>
-                        ✅ Exercícios Concluídos ({data.completedExercises.length})
+                        ✅ Exercícios Concluídos ({totalExercises})
                     </h3>
 
-                    {data.completedExercises.length === 0 ? (
+                    {totalExercises === 0 ? (
                         <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-muted)' }}>
                             <span style={{ fontSize: '2rem', display: 'block', marginBottom: '8px' }}>🎯</span>
                             <p>Nenhum exercício concluído ainda.</p>
@@ -286,42 +349,45 @@ export default function DashboardView() {
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {data.completedExercises.map(ex => (
-                                <a
-                                    key={ex.id}
-                                    href={ex.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: '12px 16px',
-                                        background: 'rgba(34, 197, 94, 0.04)',
-                                        borderRadius: '10px',
-                                        textDecoration: 'none',
-                                        color: 'inherit',
-                                        transition: 'all 0.2s',
-                                        flexWrap: 'wrap',
-                                        gap: '8px',
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <span className={`badge ${ex.type === 'daily' ? 'badge-daily' : 'badge-weekly'}`}>
-                                            {ex.type === 'daily' ? 'Diário' : 'Semanal'}
-                                        </span>
-                                        <span style={{ fontWeight: 500, fontSize: '0.9rem' }}>
-                                            {ex.title || `CF ${ex.contestId}${ex.problemIndex}`}
-                                        </span>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <span className="badge badge-success">+{ex.pointsAwarded} pt{ex.pointsAwarded > 1 ? 's' : ''}</span>
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                            {new Date(ex.completedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                                        </span>
-                                    </div>
-                                </a>
-                            ))}
+                            {data.completedExercises.map(ex => {
+                                const badge = getTypeBadge(ex.type);
+                                return (
+                                    <a
+                                        key={ex.id}
+                                        href={ex.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            padding: '12px 16px',
+                                            background: ex.type === 'practice' ? 'rgba(99, 102, 241, 0.04)' : 'rgba(34, 197, 94, 0.04)',
+                                            borderRadius: '10px',
+                                            textDecoration: 'none',
+                                            color: 'inherit',
+                                            transition: 'all 0.2s',
+                                            flexWrap: 'wrap',
+                                            gap: '8px',
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <span className={`badge ${badge.cls}`}>
+                                                {badge.label}
+                                            </span>
+                                            <span style={{ fontWeight: 500, fontSize: '0.9rem' }}>
+                                                {ex.title || `CF ${ex.contestId}${ex.problemIndex}`}
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <span className="badge badge-success">+{ex.pointsAwarded} pt{ex.pointsAwarded > 1 ? 's' : ''}</span>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                {new Date(ex.completedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                            </span>
+                                        </div>
+                                    </a>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

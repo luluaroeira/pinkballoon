@@ -45,15 +45,49 @@ interface ScoringPeriod {
     isActive: boolean;
 }
 
+interface RankingMember {
+    id: number;
+    userId: number;
+    status: string;
+    createdAt: string;
+    user: {
+        id: number;
+        name: string;
+        email: string;
+        codeforcesHandle: string;
+    };
+}
+
+interface AdminRanking {
+    id: number;
+    name: string;
+    description: string | null;
+    isActive: boolean;
+    scoringPeriodId: number;
+    createdAt: string;
+    scoringPeriod: ScoringPeriod;
+    memberships: RankingMember[];
+}
+
 export default function AdminView() {
-    const [activeTab, setActiveTab] = useState<'exercises' | 'announcements' | 'users' | 'checker' | 'periods'>('exercises');
+    const [activeTab, setActiveTab] = useState<'exercises' | 'announcements' | 'users' | 'checker' | 'periods' | 'rankings'>('exercises');
     const [exercises, setExercises] = useState<Exercise[]>([]);
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [periods, setPeriods] = useState<ScoringPeriod[]>([]);
+    const [rankings, setRankings] = useState<AdminRanking[]>([]);
     const [loading, setLoading] = useState(true);
     const [activePeriodName, setActivePeriodName] = useState<string | null>(null);
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+    // Ranking form
+    const [showRankingForm, setShowRankingForm] = useState(false);
+    const [rankingForm, setRankingForm] = useState({
+        name: '',
+        description: '',
+        scoringPeriodId: '',
+    });
+    const [expandedRanking, setExpandedRanking] = useState<number | null>(null);
 
     // Exercise form
     const [showForm, setShowForm] = useState(false);
@@ -143,20 +177,22 @@ export default function AdminView() {
     const fetchAll = useCallback(async () => {
         setLoading(true);
         try {
-            const [exRes, annRes, usrRes, perRes] = await Promise.all([
+            const [exRes, annRes, usrRes, perRes, rkRes] = await Promise.all([
                 fetch('/api/admin/exercises'),
                 fetch('/api/admin/announcements'),
                 fetch('/api/admin/users'),
                 fetch('/api/admin/periods'),
+                fetch('/api/admin/rankings'),
             ]);
-            const [exData, annData, usrData, perData] = await Promise.all([
-                exRes.json(), annRes.json(), usrRes.json(), perRes.json()
+            const [exData, annData, usrData, perData, rkData] = await Promise.all([
+                exRes.json(), annRes.json(), usrRes.json(), perRes.json(), rkRes.json()
             ]);
             setExercises(exData.exercises || []);
             setAnnouncements(annData.announcements || []);
             setUsers(usrData.users || []);
             setActivePeriodName(usrData.activePeriod?.name || null);
             setPeriods(Array.isArray(perData) ? perData : []);
+            setRankings(rkData.rankings || []);
         } catch (err) {
             console.error('Admin fetch error:', err);
         } finally {
@@ -381,9 +417,73 @@ export default function AdminView() {
         }
     };
 
+    // --- RANKINGS LOGIC ---
+    const handleRankingSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!rankingForm.name || !rankingForm.scoringPeriodId) {
+            showToast('Nome e período são obrigatórios', 'error');
+            return;
+        }
+        try {
+            const res = await fetch('/api/admin/rankings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(rankingForm),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(data.message || 'Ranking criado!', 'success');
+                setRankingForm({ name: '', description: '', scoringPeriodId: '' });
+                setShowRankingForm(false);
+                fetchAll();
+            } else {
+                showToast(data.error || 'Erro ao criar', 'error');
+            }
+        } catch {
+            showToast('Erro de conexão', 'error');
+        }
+    };
+
+    const handleDeleteRanking = async (id: number) => {
+        if (!confirm('Tem certeza que deseja excluir este ranking e todas as participações?')) return;
+        try {
+            await fetch(`/api/admin/rankings/${id}`, { method: 'DELETE' });
+            showToast('Ranking excluído.', 'success');
+            fetchAll();
+        } catch {
+            showToast('Erro ao excluir', 'error');
+        }
+    };
+
+    const handleMemberAction = async (rankingId: number, memberId: number, status: 'approved' | 'rejected') => {
+        try {
+            const res = await fetch(`/api/admin/rankings/${rankingId}/members/${memberId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status }),
+            });
+            const data = await res.json();
+            showToast(data.message || 'Atualizado!', res.ok ? 'success' : 'error');
+            if (res.ok) fetchAll();
+        } catch {
+            showToast('Erro de conexão', 'error');
+        }
+    };
+
+    const handleRemoveMember = async (rankingId: number, memberId: number) => {
+        if (!confirm('Remover este membro do ranking?')) return;
+        try {
+            await fetch(`/api/admin/rankings/${rankingId}/members/${memberId}`, { method: 'DELETE' });
+            showToast('Membro removido!', 'success');
+            fetchAll();
+        } catch {
+            showToast('Erro ao remover', 'error');
+        }
+    };
 
     const tabs = [
         { key: 'periods', label: 'Períodos', icon: '📅' },
+        { key: 'rankings', label: 'Rankings', icon: '🏅' },
         { key: 'exercises', label: 'Exercícios', icon: '📝' },
         { key: 'announcements', label: 'Avisos', icon: '📢' },
         { key: 'users', label: 'Usuárias', icon: '👥' },
@@ -823,6 +923,191 @@ export default function AdminView() {
                                             <p>Nenhuma usuária cadastrada.</p>
                                         </div>
                                     )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* RANKINGS TAB */}
+                        {activeTab === 'rankings' && (
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                    <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Rankings ({rankings.length})</h2>
+                                    <button className="btn-primary" onClick={() => setShowRankingForm(!showRankingForm)}>
+                                        {showRankingForm ? 'Cancelar' : '+ Novo Ranking'}
+                                    </button>
+                                </div>
+
+                                {showRankingForm && (
+                                    <div className="card" style={{ marginBottom: '20px' }}>
+                                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '12px' }}>Criar Novo Ranking 🏅</h3>
+                                        <form onSubmit={handleRankingSubmit}>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Nome do Ranking</label>
+                                                    <input className="input" type="text" placeholder="Ex: Ranking Março 2026" value={rankingForm.name} onChange={e => setRankingForm({ ...rankingForm, name: e.target.value })} required />
+                                                </div>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Período de Pontuação</label>
+                                                    <select className="select" value={rankingForm.scoringPeriodId} onChange={e => setRankingForm({ ...rankingForm, scoringPeriodId: e.target.value })} required>
+                                                        <option value="">Selecione um período...</option>
+                                                        {periods.map(p => (
+                                                            <option key={p.id} value={p.id}>
+                                                                {p.name} ({new Date(p.startDate).toLocaleDateString('pt-BR')} - {new Date(p.endDate).toLocaleDateString('pt-BR')})
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div style={{ marginTop: '12px' }}>
+                                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Descrição (opcional)</label>
+                                                <input className="input" type="text" placeholder="Ex: Ranking competitivo do mês" value={rankingForm.description} onChange={e => setRankingForm({ ...rankingForm, description: e.target.value })} />
+                                            </div>
+                                            <button className="btn-primary" type="submit" style={{ marginTop: '12px' }}>Criar Ranking 🏅</button>
+                                        </form>
+                                    </div>
+                                )}
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {rankings.length === 0 && (
+                                        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                                            <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '12px' }}>🏅</span>
+                                            <p>Nenhum ranking criado.</p>
+                                            <p style={{ fontSize: '0.85rem', marginTop: '4px' }}>Crie um ranking para as competidoras participarem!</p>
+                                        </div>
+                                    )}
+                                    {rankings.map(rk => {
+                                        const pendingCount = rk.memberships.filter(m => m.status === 'pending').length;
+                                        const approvedCount = rk.memberships.filter(m => m.status === 'approved').length;
+                                        const isExpanded = expandedRanking === rk.id;
+
+                                        return (
+                                            <div key={rk.id} className="card" style={{ padding: '16px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
+                                                    <div style={{ flex: 1, minWidth: '200px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                                                            <span style={{ fontWeight: 700, fontSize: '1.05rem' }}>🏅 {rk.name}</span>
+                                                            {rk.isActive ? (
+                                                                <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>Ativo</span>
+                                                            ) : (
+                                                                <span className="badge" style={{ fontSize: '0.7rem', background: 'rgba(100,100,100,0.2)' }}>Inativo</span>
+                                                            )}
+                                                            {pendingCount > 0 && (
+                                                                <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>
+                                                                    {pendingCount} pendente{pendingCount > 1 ? 's' : ''}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {rk.description && (
+                                                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>{rk.description}</p>
+                                                        )}
+                                                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                                            📅 {rk.scoringPeriod.name} • {new Date(rk.scoringPeriod.startDate).toLocaleDateString('pt-BR')} até {new Date(rk.scoringPeriod.endDate).toLocaleDateString('pt-BR')}
+                                                        </p>
+                                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                                            👥 {approvedCount} participante{approvedCount !== 1 ? 's' : ''}
+                                                        </p>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                        <button
+                                                            className="btn-secondary"
+                                                            onClick={() => setExpandedRanking(isExpanded ? null : rk.id)}
+                                                            style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                                                        >
+                                                            {isExpanded ? '▲ Fechar' : `👥 Membros (${rk.memberships.length})`}
+                                                        </button>
+                                                        <button className="btn-danger" onClick={() => handleDeleteRanking(rk.id)}>
+                                                            🗑️
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Expanded memberships */}
+                                                {isExpanded && (
+                                                    <div style={{ marginTop: '16px', borderTop: '1px solid var(--card-border)', paddingTop: '16px' }}>
+                                                        {rk.memberships.length === 0 ? (
+                                                            <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '8px' }}>
+                                                                Nenhuma solicitação de participação ainda.
+                                                            </p>
+                                                        ) : (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                {/* Pending first, then approved, then rejected */}
+                                                                {[...rk.memberships]
+                                                                    .sort((a, b) => {
+                                                                        const order: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
+                                                                        return (order[a.status] ?? 3) - (order[b.status] ?? 3);
+                                                                    })
+                                                                    .map(m => (
+                                                                        <div key={m.id} style={{
+                                                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                                            padding: '10px 12px', borderRadius: '10px', flexWrap: 'wrap', gap: '8px',
+                                                                            background: m.status === 'pending' ? 'rgba(234, 179, 8, 0.08)' :
+                                                                                m.status === 'approved' ? 'rgba(74, 222, 128, 0.06)' :
+                                                                                    'rgba(239, 68, 68, 0.06)',
+                                                                            border: `1px solid ${m.status === 'pending' ? 'rgba(234, 179, 8, 0.2)' :
+                                                                                m.status === 'approved' ? 'rgba(74, 222, 128, 0.2)' :
+                                                                                    'rgba(239, 68, 68, 0.2)'}`,
+                                                                        }}>
+                                                                            <div>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                                    <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{m.user.name}</span>
+                                                                                    <span className={`badge ${m.status === 'pending' ? 'badge-warning' : m.status === 'approved' ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: '0.65rem' }}>
+                                                                                        {m.status === 'pending' ? 'Pendente' : m.status === 'approved' ? 'Aprovada' : 'Recusada'}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                                                                    {m.user.email} • CF: {m.user.codeforcesHandle}
+                                                                                </p>
+                                                                                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                                                                    Solicitou em {new Date(m.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                                                                </p>
+                                                                            </div>
+                                                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                                                {m.status === 'pending' && (
+                                                                                    <>
+                                                                                        <button
+                                                                                            className="btn-primary"
+                                                                                            onClick={() => handleMemberAction(rk.id, m.id, 'approved')}
+                                                                                            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                                                                                        >
+                                                                                            ✅ Aprovar
+                                                                                        </button>
+                                                                                        <button
+                                                                                            className="btn-danger"
+                                                                                            onClick={() => handleMemberAction(rk.id, m.id, 'rejected')}
+                                                                                            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                                                                                        >
+                                                                                            ❌ Recusar
+                                                                                        </button>
+                                                                                    </>
+                                                                                )}
+                                                                                {m.status === 'approved' && (
+                                                                                    <button
+                                                                                        className="btn-danger"
+                                                                                        onClick={() => handleRemoveMember(rk.id, m.id)}
+                                                                                        style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                                                                                    >
+                                                                                        🗑️ Remover
+                                                                                    </button>
+                                                                                )}
+                                                                                {m.status === 'rejected' && (
+                                                                                    <button
+                                                                                        className="btn-secondary"
+                                                                                        onClick={() => handleMemberAction(rk.id, m.id, 'approved')}
+                                                                                        style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                                                                                    >
+                                                                                        ✅ Aprovar
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}

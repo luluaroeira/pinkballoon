@@ -33,6 +33,10 @@
   --card-border: rgba(168, 85, 247, 0.15);
   --glow-pink: rgba(236, 72, 153, 0.3);
   --glow-purple: rgba(168, 85, 247, 0.3);
+
+  --green-400: #4ade80;
+  --green-500: #22c55e;
+  --yellow-500: #eab308;
 }
 
 * {
@@ -333,6 +337,18 @@ body {
   background: rgba(99, 102, 241, 0.15);
   color: #818cf8;
   border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.badge-warning {
+  background: rgba(234, 179, 8, 0.15);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.badge-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 /* Navigation */

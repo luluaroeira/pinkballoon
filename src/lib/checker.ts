@@ -158,7 +158,7 @@ async function processUser(user: any, activeExercises: any[]): Promise<{ complet
                 // 2. Practice Points based on Rating
                 const rating = sub.problem.rating || 0;
 
-                if (rating >= 800 && rating <= 900) points = 1;
+                if (rating >= 800 && rating <= 1100) points = 1;
                 else if (rating >= 1200 && rating <= 1300) points = 2;
                 else if (rating >= 1400 && rating <= 1500) points = 3;
                 else if (rating >= 1600 && rating <= 1700) points = 4;
