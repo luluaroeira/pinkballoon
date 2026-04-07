@@ -48,3 +48,4 @@ next-env.d.ts
 *.db-journal
 error_script_*.txt
 tmp_*.txt
+.env*.local
