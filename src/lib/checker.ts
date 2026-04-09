@@ -156,13 +156,14 @@ async function processUser(user: any, activeExercises: any[]): Promise<{ complet
                 exerciseId = target.id;
             } else {
                 // 2. Practice Points based on Rating
+                // Every accepted problem gives at least 1 point
                 const rating = sub.problem.rating || 0;
 
-                if (rating >= 800 && rating <= 1100) points = 1;
-                else if (rating >= 1200 && rating <= 1300) points = 2;
-                else if (rating >= 1400 && rating <= 1500) points = 3;
-                else if (rating >= 1600 && rating <= 1700) points = 4;
-                else if (rating >= 1800) points = 5;
+                if (rating >= 1800) points = 5;
+                else if (rating >= 1600) points = 4;
+                else if (rating >= 1400) points = 3;
+                else if (rating >= 1200) points = 2;
+                else points = 1; // rating < 1200, unrated, or no rating
             }
 
             // Save Completion
