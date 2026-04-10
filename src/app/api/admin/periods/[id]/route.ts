@@ -26,8 +26,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             where: { id },
             data: {
                 ...(name && { name }),
-                ...(startDate && { startDate: new Date(startDate) }),
-                ...(endDate && { endDate: new Date(endDate) }),
+                ...(startDate && { startDate: new Date(startDate + 'T12:00:00Z') }),
+                ...(endDate && { endDate: new Date(endDate + 'T12:00:00Z') }),
                 ...(isActive !== undefined && { isActive })
             }
         });
@@ -47,10 +47,41 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
             return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 });
         }
         const { id } = await params;
-        await prisma.scoringPeriod.delete({ where: { id: parseInt(id) } });
+        const periodId = parseInt(id);
+
+        // Check force flag
+        const { searchParams } = new URL(request.url);
+        const force = searchParams.get('force') === 'true';
+
+        // Check if period has rankings associated
+        const rankingsCount = await prisma.ranking.count({ where: { scoringPeriodId: periodId } });
+
+        if (rankingsCount > 0 && !force) {
+            return NextResponse.json(
+                {
+                    error: `Este período possui ${rankingsCount} ranking(s) associado(s). Deseja excluir tudo?`,
+                    hasRankings: true,
+                    rankingsCount,
+                },
+                { status: 409 }
+            );
+        }
+
+        // If force, delete associated rankings first (memberships cascade automatically)
+        if (rankingsCount > 0 && force) {
+            await prisma.ranking.deleteMany({ where: { scoringPeriodId: periodId } });
+        }
+
+        await prisma.scoringPeriod.delete({ where: { id: periodId } });
         return NextResponse.json({ success: true });
-    } catch (e) {
+    } catch (e: any) {
         console.error('Period delete error:', e);
-        return NextResponse.json({ error: 'Erro ao deletar' }, { status: 500 });
+        if (e?.code === 'P2003') {
+            return NextResponse.json(
+                { error: 'Não é possível excluir: período possui dados associados. Tente novamente com a opção de forçar.' },
+                { status: 400 }
+            );
+        }
+        return NextResponse.json({ error: 'Erro ao deletar período.' }, { status: 500 });
     }
 }

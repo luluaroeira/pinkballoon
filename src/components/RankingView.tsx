@@ -430,7 +430,7 @@ export default function RankingView() {
                                                             </p>
                                                         </div>
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
-                                                            {r.myStatus === 'approved' && (
+                                                            {(r.myStatus === 'approved' || user?.role === 'admin') && (
                                                                 <button
                                                                     className="btn-primary"
                                                                     onClick={() => handleViewRanking(r.id)}

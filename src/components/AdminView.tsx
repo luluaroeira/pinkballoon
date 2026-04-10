@@ -407,13 +407,30 @@ export default function AdminView() {
     };
 
     const handleDeletePeriod = async (id: number) => {
-        if (!confirm('Tem certeza? Isso pode afetar o cálculo de pontos se houver histórico.')) return;
+        if (!confirm('Tem certeza que deseja excluir este período?')) return;
         try {
-            await fetch(`/api/admin/periods/${id}`, { method: 'DELETE' });
-            showToast('Período excluído.', 'success');
-            fetchAll();
+            const res = await fetch(`/api/admin/periods/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (res.ok) {
+                showToast('Período excluído.', 'success');
+                fetchAll();
+            } else if (res.status === 409 && data.hasRankings) {
+                // Period has rankings — ask for force confirmation
+                if (confirm(`⚠️ Este período possui ${data.rankingsCount} ranking(s) associado(s).\n\nDeseja excluir o período E todos os rankings vinculados?\n\nEssa ação não pode ser desfeita!`)) {
+                    const forceRes = await fetch(`/api/admin/periods/${id}?force=true`, { method: 'DELETE' });
+                    if (forceRes.ok) {
+                        showToast('Período e rankings associados excluídos.', 'success');
+                        fetchAll();
+                    } else {
+                        const forceData = await forceRes.json();
+                        showToast(forceData.error || 'Erro ao excluir período', 'error');
+                    }
+                }
+            } else {
+                showToast(data.error || 'Erro ao excluir período', 'error');
+            }
         } catch {
-            showToast('Erro ao excluir', 'error');
+            showToast('Erro de conexão', 'error');
         }
     };
 

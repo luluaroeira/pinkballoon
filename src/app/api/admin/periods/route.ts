@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
         const period = await prisma.scoringPeriod.create({
             data: {
                 name,
-                startDate: new Date(startDate),
-                endDate: new Date(endDate),
+                startDate: new Date(startDate + 'T12:00:00Z'),
+                endDate: new Date(endDate + 'T12:00:00Z'),
                 isActive: false // Default inactive
             }
         });
