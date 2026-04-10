@@ -251,18 +251,7 @@ export default function AdminView() {
         }
     };
 
-    const handleRunCheck = async () => {
-        try {
-            const res = await fetch('/api/checker', { method: 'POST' });
-            if (res.ok) {
-                showToast('Verificação iniciada! Os pontos aparecerão em breve. ⏳', 'success');
-            } else {
-                showToast('Erro ao iniciar verificação', 'error');
-            }
-        } catch {
-            showToast('Erro de conexão', 'error');
-        }
-    };
+
 
     const handleDeleteExercise = async (id: number) => {
         if (!confirm('Tem certeza que deseja remover este exercício?')) return;
@@ -526,7 +515,7 @@ export default function AdminView() {
                             Gerencie períodos, exercícios e avisos.
                         </p>
                     </div>
-                    <button className="btn-secondary" onClick={handleRunCheck}>
+                    <button className="btn-secondary" onClick={handleRunChecker}>
                         🔄 Forçar Verificação
                     </button>
                 </div>
