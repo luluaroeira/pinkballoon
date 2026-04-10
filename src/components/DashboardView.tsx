@@ -63,7 +63,7 @@ export default function DashboardView() {
 
         const w = rect.width;
         const h = rect.height;
-        const padding = { top: 20, right: 16, bottom: 50, left: 36 };
+        const padding = { top: 20, right: 16, bottom: 36, left: 36 };
         const chartW = w - padding.left - padding.right;
         const chartH = h - padding.top - padding.bottom;
 
@@ -97,8 +97,8 @@ export default function DashboardView() {
 
         // Bar dimensions
         const totalBars = points.length;
-        const barGap = 2;
-        const barWidth = Math.max(2, (chartW - barGap * (totalBars - 1)) / totalBars);
+        const barGap = 1;
+        const barWidth = Math.max(4, (chartW - barGap * (totalBars - 1)) / totalBars);
 
         // Draw bars
         const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
@@ -132,11 +132,11 @@ export default function DashboardView() {
                 ctx.restore();
 
                 // Point value on top of bar
-                if (barH > 18) {
+                if (barH > 14) {
                     ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 9px Inter, sans-serif';
+                    ctx.font = 'bold 10px Inter, sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText(String(p.points), x + barWidth / 2, y - 4);
+                    ctx.fillText(String(p.points), x + barWidth / 2, y - 5);
                 }
             } else {
                 // Subtle empty indicator
@@ -145,22 +145,19 @@ export default function DashboardView() {
             }
         });
 
-        // X-axis labels (show every few days to avoid overlap)
+        // X-axis labels — show horizontally, spaced to avoid overlap
         ctx.fillStyle = '#8b7a9e';
-        ctx.font = '9px Inter, sans-serif';
         ctx.textAlign = 'center';
 
-        // Show labels every N days based on total count  
-        const step = totalBars <= 14 ? 1 : totalBars <= 21 ? 2 : 3;
+        // Calculate how many labels we can fit without overlapping
+        const labelWidth = 36; // approximate width of "DD/MM" at 9px
+        const maxLabels = Math.floor(chartW / labelWidth);
+        const step = Math.max(1, Math.ceil(totalBars / maxLabels));
+        ctx.font = '9px Inter, sans-serif';
         points.forEach((p, i) => {
             if (i % step === 0 || i === totalBars - 1) {
-                const x = padding.left + i * (barWidth + barGap) + barWidth / 2;
-                ctx.save();
-                ctx.translate(x, h - 6);
-                ctx.rotate(-Math.PI / 4);
-                ctx.textAlign = 'right';
-                ctx.fillText(p.day, 0, 0);
-                ctx.restore();
+                const lx = padding.left + i * (barWidth + barGap) + barWidth / 2;
+                ctx.fillText(p.day, lx, h - padding.bottom + 18);
             }
         });
 
@@ -175,10 +172,10 @@ export default function DashboardView() {
         const mouseX = e.clientX - rect.left;
 
         const points = data.dailyPoints;
-        const padding = { left: 36, right: 16, top: 20, bottom: 50 };
+        const padding = { left: 36, right: 16, top: 20, bottom: 36 };
         const chartW = rect.width - padding.left - padding.right;
-        const barGap = 2;
-        const barWidth = Math.max(2, (chartW - barGap * (points.length - 1)) / points.length);
+        const barGap = 1;
+        const barWidth = Math.max(4, (chartW - barGap * (points.length - 1)) / points.length);
 
         const index = Math.floor((mouseX - padding.left) / (barWidth + barGap));
         if (index >= 0 && index < points.length && points[index].points > 0) {

@@ -3,6 +3,21 @@ import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { maybeRunChecker } from '@/lib/auto-checker';
 
+// Helper: get a Date adjusted to BRT (UTC-3) for day-level grouping
+function toBRT(date: Date): Date {
+    return new Date(date.getTime() - 3 * 60 * 60 * 1000);
+}
+
+function getBRTDateString(date: Date): string {
+    const brt = toBRT(date);
+    return `${brt.getUTCFullYear()}-${String(brt.getUTCMonth() + 1).padStart(2, '0')}-${String(brt.getUTCDate()).padStart(2, '0')}`;
+}
+
+function getBRTDayLabel(date: Date): string {
+    const brt = toBRT(date);
+    return `${String(brt.getUTCDate()).padStart(2, '0')}/${String(brt.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 // GET /api/dashboard
 export async function GET() {
     // Trigger checker in background after response is sent (if 10+ min since last run)
@@ -55,11 +70,9 @@ export async function GET() {
         const weeklyCompleted = completions.filter(c => c.type === 'weekly').length;
 
         // Calculate streak (consecutive days with ANY exercise completed - daily, weekly, or practice)
+        // Use BRT timezone for day boundaries so it matches user's local time
         const allCompletionDates = completions
-            .map(c => {
-                const d = new Date(c.completedAt);
-                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            })
+            .map(c => getBRTDateString(new Date(c.completedAt)))
             .filter((v, i, a) => a.indexOf(v) === i) // unique dates
             .sort()
             .reverse();
@@ -69,11 +82,9 @@ export async function GET() {
         let tempStreak = 0;
 
         if (allCompletionDates.length > 0) {
-            const today = new Date();
-            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-            const yesterday = new Date(today);
-            yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+            const todayStr = getBRTDateString(new Date());
+            const yesterdayDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const yesterdayStr = getBRTDateString(yesterdayDate);
 
             // Current streak
             if (allCompletionDates[0] === todayStr || allCompletionDates[0] === yesterdayStr) {
@@ -109,24 +120,22 @@ export async function GET() {
         }
 
         // Daily points chart (last 30 days, day by day)
+        // Group by BRT day so points match the user's local midnight boundaries
         const dailyPoints: { day: string; points: number }[] = [];
-        const now = new Date();
+        const nowMs = Date.now();
+
+        // Pre-compute a map of BRT date string -> total points
+        const pointsByDay = new Map<string, number>();
+        for (const c of completions) {
+            const dayKey = getBRTDateString(new Date(c.completedAt));
+            pointsByDay.set(dayKey, (pointsByDay.get(dayKey) || 0) + c.pointsAwarded);
+        }
+
         for (let i = 29; i >= 0; i--) {
-            const dayDate = new Date(now);
-            dayDate.setDate(dayDate.getDate() - i);
-            dayDate.setHours(0, 0, 0, 0);
-            const dayEnd = new Date(dayDate);
-            dayEnd.setHours(23, 59, 59, 999);
-
-            const dayPts = completions
-                .filter(c => {
-                    const d = new Date(c.completedAt);
-                    return d >= dayDate && d <= dayEnd;
-                })
-                .reduce((sum, c) => sum + c.pointsAwarded, 0);
-
-            const label = `${String(dayDate.getDate()).padStart(2, '0')}/${String(dayDate.getMonth() + 1).padStart(2, '0')}`;
-            dailyPoints.push({ day: label, points: dayPts });
+            const dayDate = new Date(nowMs - i * 24 * 60 * 60 * 1000);
+            const dayKey = getBRTDateString(dayDate);
+            const label = getBRTDayLabel(dayDate);
+            dailyPoints.push({ day: label, points: pointsByDay.get(dayKey) || 0 });
         }
 
         // Completed exercises list (all types)
