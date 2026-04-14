@@ -30,25 +30,12 @@ export async function GET() {
             return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
         }
 
-        // Check active period first to build the completions filter
-        const activePeriod = await prisma.scoringPeriod.findFirst({
-            where: { isActive: true }
-        });
-
-        // Build completions where clause (same approach as ranking API)
-        const completionsWhere: Record<string, unknown> = {};
-        if (activePeriod) {
-            completionsWhere.completedAt = {
-                gte: activePeriod.startDate,
-                lte: activePeriod.endDate,
-            };
-        }
-
+        // Dashboard shows ALL user completions (personal progress view).
+        // Period-specific filtering is handled by each ranking individually.
         const user = await prisma.user.findUnique({
             where: { id: session.userId },
             include: {
                 completions: {
-                    where: completionsWhere,
                     include: {
                         exercise: true
                     },
