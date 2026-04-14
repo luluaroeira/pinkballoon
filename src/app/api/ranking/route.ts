@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { maybeRunChecker } from '@/lib/auto-checker';
+
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
 
 // GET /api/ranking
 export async function GET(request: Request) {
@@ -9,6 +13,9 @@ export async function GET(request: Request) {
         if (!session) {
             return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
         }
+
+        // Run checker synchronously so points are fresh on page load
+        await maybeRunChecker();
 
         const { searchParams } = new URL(request.url);
         const periodParam = searchParams.get('period'); // 'month', 'semester'
@@ -82,6 +89,7 @@ export async function GET(request: Request) {
                 ...user,
                 position: index + 1,
             }));
+
 
         return NextResponse.json({ ranking });
     } catch (error) {

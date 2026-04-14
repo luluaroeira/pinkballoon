@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { maybeRunChecker } from '@/lib/auto-checker';
+
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
 
 // POST /api/rankings/[id]/join - Request to join a ranking
 export async function POST(
@@ -77,6 +81,9 @@ export async function GET(
         if (!session) {
             return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
         }
+
+        // Run checker BEFORE fetching data so points are always fresh
+        await maybeRunChecker();
 
         const { id } = await params;
         const rankingId = Number(id);
@@ -165,3 +172,4 @@ export async function GET(
         return NextResponse.json({ error: 'Erro ao buscar ranking' }, { status: 500 });
     }
 }
+
