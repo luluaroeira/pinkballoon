@@ -30,10 +30,25 @@ export async function GET() {
             return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
         }
 
+        // Check active period first to build the completions filter
+        const activePeriod = await prisma.scoringPeriod.findFirst({
+            where: { isActive: true }
+        });
+
+        // Build completions where clause (same approach as ranking API)
+        const completionsWhere: Record<string, unknown> = {};
+        if (activePeriod) {
+            completionsWhere.completedAt = {
+                gte: activePeriod.startDate,
+                lte: activePeriod.endDate,
+            };
+        }
+
         const user = await prisma.user.findUnique({
             where: { id: session.userId },
             include: {
                 completions: {
+                    where: completionsWhere,
                     include: {
                         exercise: true
                     },
@@ -46,21 +61,7 @@ export async function GET() {
             return NextResponse.json({ error: 'Usuária não encontrada' }, { status: 404 });
         }
 
-        // Check active period
-        const activePeriod = await prisma.scoringPeriod.findFirst({
-            where: { isActive: true }
-        });
-
-        // Filter completions if active period exists
-        let completions = user.completions;
-        if (activePeriod) {
-            const start = new Date(activePeriod.startDate).getTime();
-            const end = new Date(activePeriod.endDate).getTime();
-            completions = user.completions.filter(c => {
-                const t = new Date(c.completedAt).getTime();
-                return t >= start && t <= end;
-            });
-        }
+        const completions = user.completions;
 
         // Total points (based on filtered completions)
         const totalPoints = completions.reduce((sum, c) => sum + c.pointsAwarded, 0);
