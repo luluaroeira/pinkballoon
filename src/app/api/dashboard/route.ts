@@ -30,12 +30,25 @@ export async function GET() {
             return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
         }
 
-        // Dashboard shows ALL user completions (personal progress view).
-        // Period-specific filtering is handled by each ranking individually.
+        // Dashboard shows completions since the user created their account.
         const user = await prisma.user.findUnique({
+            where: { id: session.userId },
+        });
+
+        if (!user) {
+            return NextResponse.json({ error: 'Usuária não encontrada' }, { status: 404 });
+        }
+
+        const userWithCompletions = await prisma.user.findUnique({
             where: { id: session.userId },
             include: {
                 completions: {
+                    where: {
+                        completedAt: {
+                            gte: user.createdAt,
+                            lte: new Date(),
+                        }
+                    },
                     include: {
                         exercise: true
                     },
@@ -44,11 +57,7 @@ export async function GET() {
             }
         });
 
-        if (!user) {
-            return NextResponse.json({ error: 'Usuária não encontrada' }, { status: 404 });
-        }
-
-        const completions = user.completions;
+        const completions = userWithCompletions!.completions;
 
         // Total points (based on filtered completions)
         const totalPoints = completions.reduce((sum, c) => sum + c.pointsAwarded, 0);
