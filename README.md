@@ -1,3 +1,5 @@
+![PinkBalloon: programação competitiva para meninas](docs/banner.png)
+
 # 🎈 PinkBalloon
 
 Plataforma de treino de programação competitiva feita para o grupo de maratonistas da minha universidade! O nome é uma referência ao balão rosa que a gente ganha quando resolve um problema em competição.
